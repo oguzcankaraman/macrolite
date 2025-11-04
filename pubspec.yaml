@@ -1,0 +1,89 @@
+# Projenizin adı. (Yeni projeyi 'macrolite' olarak oluşturduğunuzu varsayarak)
+name: macrolite
+description: "A minimalist macro and calorie tracker app."
+
+# Bu, uygulamanın 'private' olduğunu ve pub.dev'e yanlışlıkla yayınlanmasını engeller.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  go_router: ^16.3.0
+  dio: ^5.9.0
+  mobile_scanner: ^7.1.3
+  in_app_purchase: ^3.2.3
+  flutter_dotenv: ^6.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.11
+  riverpod_generator: ^2.4.0
+  hive_generator: ^2.0.1
+
+
+# ===================================================================
+# FLUTTER'A ÖZEL AYARLAR
+# ===================================================================
+flutter:
+  uses-material-design: true
+
+  # "Proje Nakli" operasyonundan sonra .env ve fontlarınızı
+  # yeni projenize kopyaladığınızı varsayarak:
+  assets:
+    - .env
+    # - assets/fonts/
+
+  # Örnek font tanımı (kendi fontlarınızı buraya ekleyin)
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
+  #       - asset: assetsf/fonts/Poppins-Bold.ttf
+  #         weight: 700
+fonts:
+  - family: Poppins
+    fonts:
+      - asset: assets/fonts/Poppins-Regular.ttf
+      - asset: assets/fonts/Poppins-Medium.ttf
+        weight: 500
+      - asset: assets/fonts/Poppins-SemiBold.ttf
+        weight: 600
+      - asset: assets/fonts/Poppins-Bold.ttf
+        weight: 700
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package
