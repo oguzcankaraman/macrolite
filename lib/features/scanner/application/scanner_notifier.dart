@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:macrolite/core/api/food_repository.dart';
 import 'package:macrolite/core/domain/food_product.dart';
+import 'package:macrolite/features/scanner/domain/scanner_error.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 part 'scanner_notifier.g.dart';
@@ -45,6 +47,7 @@ class _BarcodeCache {
 class ScannerNotifier extends _$ScannerNotifier {
   _BarcodeCache? _lastScannedBarcode;
   bool _isHandling = false;
+  String? _lastFailedBarcode;
   static const Duration _barcodeTTL = Duration(seconds: 2);
 
   @override
@@ -53,10 +56,8 @@ class ScannerNotifier extends _$ScannerNotifier {
   }
 
   bool canProcessBarcode(String barcode) {
-    // Gate kontrolü: Başka bir işlem devam ediyorsa engelle
     if (_isHandling) return false;
 
-    // Aynı barkod kontrolü: Son taranan barkod hala geçerliyse engelle
     if (_lastScannedBarcode != null &&
         _lastScannedBarcode!.barcode == barcode &&
         !_lastScannedBarcode!.isExpired(_barcodeTTL)) {
@@ -71,20 +72,56 @@ class ScannerNotifier extends _$ScannerNotifier {
 
     _isHandling = true;
     _lastScannedBarcode = _BarcodeCache(barcode, DateTime.now());
+    _lastFailedBarcode = null;
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      return ref.read(foodRepositoryProvider).getFoodByBarcode(barcode);
+      try {
+        final product = await ref.read(foodRepositoryProvider).getFoodByBarcode(barcode);
+
+        if (product == null) {
+          throw const ProductNotFoundError();
+        }
+
+        return product;
+      } on DioException catch (e) {
+        if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.connectionError ||
+            e.error is SocketException) {
+          throw const NetworkError();
+        }
+
+        if (e.response?.statusCode == 404) {
+          throw const ProductNotFoundError();
+        }
+
+        throw const UnknownError();
+      } catch (e) {
+        if (e is ScannerError) rethrow;
+        throw const UnknownError();
+      }
     });
 
-    // İşlem tamamlandı, gate'i aç
+    if (state.hasError) {
+      _lastFailedBarcode = barcode;
+    }
+
     _isHandling = false;
+  }
+
+  Future<void> retryLastBarcode() async {
+    if (_lastFailedBarcode != null) {
+      final barcode = _lastFailedBarcode!;
+      _lastScannedBarcode = null; // Cache'i temizle
+      await fetchFood(barcode);
+    }
   }
 
   void resetState() {
     state = const AsyncData(null);
     _isHandling = false;
-    // Not: _lastScannedBarcode'u sıfırlamıyoruz, TTL süresince korunacak
+    _lastFailedBarcode = null;
   }
 
   void clearBarcodeCache() {

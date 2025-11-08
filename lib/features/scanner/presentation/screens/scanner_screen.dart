@@ -5,6 +5,7 @@ import 'package:macrolite/core/domain/food_product.dart';
 import 'package:macrolite/features/scanner/application/scanner_notifier.dart';
 import 'package:macrolite/features/scanner/application/camera_permission_notifier.dart';
 import 'package:macrolite/features/scanner/application/torch_notifier.dart';
+import 'package:macrolite/features/scanner/domain/scanner_error.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/loading_view.dart';
@@ -12,6 +13,7 @@ import '../widgets/product_found_view.dart';
 import '../widgets/scanner_overlay.dart';
 import '../widgets/camera_permission_widget.dart';
 import '../widgets/torch_button.dart';
+import '../widgets/scanner_error_view.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -36,26 +38,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
       ref.invalidate(cameraPermissionNotifierProvider);
     } else if (state == AppLifecycleState.paused) {
       ref.read(scannerNotifierProvider.notifier).clearBarcodeCache();
-      // Torch'u kapat ve state'i sıfırla
-      _cameraController.toggleTorch();
-      ref.read(torchNotifierProvider.notifier).disable();
+      if (ref.read(torchNotifierProvider)) {
+        _cameraController.toggleTorch();
+        ref.read(torchNotifierProvider.notifier).disable();
+      }
     }
   }
 
   void _setupListener() {
     ref.listenManual<AsyncValue<FoodProduct?>>(scannerNotifierProvider, (previous, next) {
-      if (previous is AsyncLoading && next is AsyncData) {
-        final product = next.value;
-        if (product != null) {
-          _showProductFoundModal(context, ref, product);
-        }
-      }
-      if (next is AsyncError) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Hata: ${next.error.toString()}')));
-          _restartScanner();
-        }
+      // Sadece başarılı bir ürün bulunduğunda modal aç
+      if (next is AsyncData && next.value != null) {
+        _showProductFoundModal(context, ref, next.value!);
       }
     });
   }
@@ -63,7 +57,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Dispose edilmeden önce torch'u kapat
     if (ref.read(torchNotifierProvider)) {
       _cameraController.toggleTorch();
     }
@@ -74,7 +67,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   Future<void> _showProductFoundModal(BuildContext context, WidgetRef ref, FoodProduct product) async {
     await _cameraController.stop();
 
-    // Modal açılırken torch'u kapat
     if (ref.read(torchNotifierProvider)) {
       await _cameraController.toggleTorch();
       ref.read(torchNotifierProvider.notifier).disable();
@@ -155,6 +147,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
           },
         ),
         const ScannerOverlay(),
+        if (scannerState.isLoading)
+          const LoadingView()
+        else if (scannerState.hasError)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 100,
+            child: ScannerErrorView(
+              error: scannerState.error as ScannerError,
+              onRetry: _restartScanner,
+            ),
+          ),
         if (kDebugMode)
           Positioned(
             bottom: 50,
@@ -170,7 +174,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
               ),
             ),
           ),
-        if (scannerState.isLoading) const LoadingView(),
       ],
     );
   }

@@ -1,6 +1,4 @@
-
 class FoodProduct {
-  final String barcode;
   final String productName;
   final double caloriesPer100g;
   final double proteinPer100g;
@@ -8,7 +6,6 @@ class FoodProduct {
   final double fatPer100g;
 
   FoodProduct({
-    required this.barcode,
     required this.productName,
     required this.caloriesPer100g,
     required this.proteinPer100g,
@@ -17,16 +14,33 @@ class FoodProduct {
   });
 
   factory FoodProduct.fromJson(Map<String, dynamic> json) {
-    final product = json['product'] ?? {};
+    // ÖNCE status kontrolü - hata fırlat
+    final status = json['status'];
+    if (status == 0 || status == '0') {
+      throw Exception('Product not found');
+    }
+
+    final product = json['product'];
+
+    // Product null veya boş ise hata fırlat
+    if (product == null || product.isEmpty) {
+      throw Exception('Product data is null');
+    }
+
     final nutriments = product['nutriments'] ?? {};
+    final productName = product['product_name'] as String?;
+
+    // Ürün adı boş veya null ise hata fırlat
+    if (productName == null || productName.trim().isEmpty) {
+      throw Exception('Product name is missing');
+    }
 
     return FoodProduct(
-      barcode: json['code'] ?? 'No barcode',
-      productName: product['product_name'] ?? 'Ürün Adı Bulunamadı',
-      caloriesPer100g: double.tryParse(nutriments['energy-kcal_100g']?.toString() ?? '0.0') ?? 0.0,
-      proteinPer100g: double.tryParse(nutriments['proteins_100g']?.toString() ?? '0.0') ?? 0.0,
-      carbsPer100g: double.tryParse(nutriments['carbohydrates_100g']?.toString() ?? '0.0') ?? 0.0,
-      fatPer100g: double.tryParse(nutriments['fat_100g']?.toString() ?? '0.0') ?? 0.0,
+      productName: productName,
+      caloriesPer100g: (nutriments['energy-kcal_100g'] ?? 0).toDouble(),
+      proteinPer100g: (nutriments['proteins_100g'] ?? 0).toDouble(),
+      carbsPer100g: (nutriments['carbohydrates_100g'] ?? 0).toDouble(),
+      fatPer100g: (nutriments['fat_100g'] ?? 0).toDouble(),
     );
   }
 }
