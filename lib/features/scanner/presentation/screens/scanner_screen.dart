@@ -30,9 +30,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Uygulama ön plana geldiğinde izin durumunu kontrol et
     if (state == AppLifecycleState.resumed) {
       ref.invalidate(cameraPermissionNotifierProvider);
+    } else if (state == AppLifecycleState.paused) {
+      // Uygulama arka plana atıldığında cache'i temizle
+      ref.read(scannerNotifierProvider.notifier).clearBarcodeCache();
     }
   }
 
@@ -48,7 +50,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
         if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text('Hata: ${next.error.toString()}')));
-          _cameraController.start();
+          _restartScanner();
         }
       }
     });
@@ -62,19 +64,41 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   }
 
   Future<void> _showProductFoundModal(BuildContext context, WidgetRef ref, FoodProduct product) async {
+    // Modal açılırken kamerayı durdur
+    await _cameraController.stop();
+
+    if (!mounted) return;
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
         builder: (_, scrollController) => ProductFoundView(
           product: product,
           scrollController: scrollController,
         ),
       ),
     );
-    ref.read(scannerNotifierProvider.notifier).resetState();
-    _cameraController.start();
+
+    // Modal kapandığında state'i sıfırla ve taramayı yeniden başlat
+    if (mounted) {
+      ref.read(scannerNotifierProvider.notifier).resetState();
+      _restartScanner();
+    }
+  }
+
+  void _restartScanner() {
+    // Kısa bir gecikmeyle kamerayı yeniden başlat
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _cameraController.start();
+      }
+    });
   }
 
   @override
@@ -109,10 +133,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
         MobileScanner(
           controller: _cameraController,
           onDetect: (capture) {
-            if (scannerState.isLoading) return;
-            _cameraController.stop();
             final barcodeValue = capture.barcodes.firstOrNull?.rawValue;
             if (barcodeValue != null) {
+              // Notifier'daki canProcessBarcode kontrolü devreye girecek
               ref.read(scannerNotifierProvider.notifier).fetchFood(barcodeValue);
             }
           },
@@ -126,7 +149,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
             child: Center(
               child: ElevatedButton(
                 onPressed: () {
-                  if (scannerState.isLoading) return;
                   _cameraController.stop();
                   ref.read(scannerNotifierProvider.notifier).fetchFood('5449000000996');
                 },
