@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macrolite/core/domain/food_product.dart';
 import 'package:macrolite/features/scanner/application/scanner_notifier.dart';
+import 'package:macrolite/features/scanner/application/camera_permission_notifier.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/product_found_view.dart';
 import '../widgets/scanner_overlay.dart';
+import '../widgets/camera_permission_widget.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -15,13 +18,22 @@ class ScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindingObserver {
   final MobileScannerController _cameraController = MobileScannerController();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setupListener();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Uygulama ön plana geldiğinde izin durumunu kontrol et
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(cameraPermissionNotifierProvider);
+    }
   }
 
   void _setupListener() {
@@ -44,11 +56,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cameraController.dispose();
     super.dispose();
   }
 
-  // GÜNCELLEME: Metodun imzası, ona ne vermemiz gerektiğini gösteriyor.
   Future<void> _showProductFoundModal(BuildContext context, WidgetRef ref, FoodProduct product) async {
     await showModalBottomSheet(
       context: context,
@@ -68,6 +80,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final scannerState = ref.watch(scannerNotifierProvider);
+    final permissionState = ref.watch(cameraPermissionNotifierProvider);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -76,39 +89,53 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         backgroundColor: Colors.black.withValues(alpha: 0.3),
         elevation: 0,
       ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: _cameraController,
-            onDetect: (capture) {
-              if (scannerState.isLoading) return;
-              _cameraController.stop();
-              final barcodeValue = capture.barcodes.firstOrNull?.rawValue;
-              if (barcodeValue != null) {
-                ref.read(scannerNotifierProvider.notifier).fetchFood(barcodeValue);
-              }
-            },
-          ),
-          const ScannerOverlay(),
-          if (kDebugMode)
-            Positioned(
-              bottom: 50,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (scannerState.isLoading) return;
-                    _cameraController.stop();
-                    ref.read(scannerNotifierProvider.notifier).fetchFood('5449000000996');
-                  },
-                  child: const Text('Test Barkodu Tara'),
-                ),
+      body: permissionState.when(
+        data: (status) {
+          if (status.isGranted) {
+            return _buildScannerView(scannerState);
+          } else {
+            return const CameraPermissionWidget();
+          }
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => const CameraPermissionWidget(),
+      ),
+    );
+  }
+
+  Widget _buildScannerView(AsyncValue<FoodProduct?> scannerState) {
+    return Stack(
+      children: [
+        MobileScanner(
+          controller: _cameraController,
+          onDetect: (capture) {
+            if (scannerState.isLoading) return;
+            _cameraController.stop();
+            final barcodeValue = capture.barcodes.firstOrNull?.rawValue;
+            if (barcodeValue != null) {
+              ref.read(scannerNotifierProvider.notifier).fetchFood(barcodeValue);
+            }
+          },
+        ),
+        const ScannerOverlay(),
+        if (kDebugMode)
+          Positioned(
+            bottom: 50,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  if (scannerState.isLoading) return;
+                  _cameraController.stop();
+                  ref.read(scannerNotifierProvider.notifier).fetchFood('5449000000996');
+                },
+                child: const Text('Test Barkodu Tara'),
               ),
             ),
-          if (scannerState.isLoading) const LoadingView(),
-        ],
-      ),
+          ),
+        if (scannerState.isLoading) const LoadingView(),
+      ],
     );
   }
 }
