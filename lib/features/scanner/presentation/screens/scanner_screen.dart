@@ -24,6 +24,7 @@ class ScannerScreen extends ConsumerStatefulWidget {
 
 class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindingObserver {
   final MobileScannerController _cameraController = MobileScannerController();
+  bool _isModalOpen = false;
 
   @override
   void initState() {
@@ -34,20 +35,54 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      ref.invalidate(cameraPermissionNotifierProvider);
-    } else if (state == AppLifecycleState.paused) {
-      ref.read(scannerNotifierProvider.notifier).clearBarcodeCache();
-      if (ref.read(torchNotifierProvider)) {
-        _cameraController.toggleTorch();
-        ref.read(torchNotifierProvider.notifier).disable();
+    switch (state) {
+      case AppLifecycleState.resumed:
+      // Uygulama ön plana geldiğinde
+        _handleResumed();
+        break;
+      case AppLifecycleState.paused:
+      // Uygulama arka plana gittiğinde
+        _handlePaused();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+      // Diğer durumlar için ekstra işlem gerekmez
+        break;
+    }
+  }
+
+  Future<void> _handleResumed() async {
+    // İzin durumunu güncelle
+    ref.invalidate(cameraPermissionNotifierProvider);
+
+    // Modal açık değilse ve kamera durduysa, başlat
+    if (!_isModalOpen) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted && !_cameraController.value.isRunning) {
+        await _cameraController.start();
       }
+    }
+  }
+
+  Future<void> _handlePaused() async {
+    // Barkod cache'ini temizle
+    ref.read(scannerNotifierProvider.notifier).clearBarcodeCache();
+
+    // El fenerini kapat
+    if (ref.read(torchNotifierProvider)) {
+      await _cameraController.toggleTorch();
+      ref.read(torchNotifierProvider.notifier).disable();
+    }
+
+    // Kamerayı durdur
+    if (_cameraController.value.isRunning) {
+      await _cameraController.stop();
     }
   }
 
   void _setupListener() {
     ref.listenManual<AsyncValue<FoodProduct?>>(scannerNotifierProvider, (previous, next) {
-      // Sadece başarılı bir ürün bulunduğunda modal aç
       if (next is AsyncData && next.value != null) {
         _showProductFoundModal(context, ref, next.value!);
       }
@@ -65,6 +100,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   }
 
   Future<void> _showProductFoundModal(BuildContext context, WidgetRef ref, FoodProduct product) async {
+    _isModalOpen = true;
     await _cameraController.stop();
 
     if (ref.read(torchNotifierProvider)) {
@@ -90,6 +126,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
       ),
     );
 
+    _isModalOpen = false;
+
     if (mounted) {
       ref.read(scannerNotifierProvider.notifier).resetState();
       _restartScanner();
@@ -98,7 +136,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
 
   void _restartScanner() {
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
+      if (mounted && !_isModalOpen) {
         _cameraController.start();
       }
     });
@@ -141,7 +179,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
           controller: _cameraController,
           onDetect: (capture) {
             final barcodeValue = capture.barcodes.firstOrNull?.rawValue;
-            if (barcodeValue != null) {
+            if (barcodeValue != null && !_isModalOpen) {
               ref.read(scannerNotifierProvider.notifier).fetchFood(barcodeValue);
             }
           },
