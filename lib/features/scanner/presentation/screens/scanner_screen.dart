@@ -1,19 +1,15 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macrolite/core/domain/food_product.dart';
 import 'package:macrolite/features/scanner/application/scanner_notifier.dart';
 import 'package:macrolite/features/scanner/application/camera_permission_notifier.dart';
 import 'package:macrolite/features/scanner/application/torch_notifier.dart';
-import 'package:macrolite/features/scanner/domain/scanner_error.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../widgets/loading_view.dart';
 import '../widgets/product_found_view.dart';
-import '../widgets/scanner_overlay.dart';
+import '../widgets/scanner_view.dart';
 import '../widgets/camera_permission_widget.dart';
 import '../widgets/torch_button.dart';
-import '../widgets/scanner_error_view.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -37,26 +33,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-      // Uygulama ön plana geldiğinde
         _handleResumed();
         break;
       case AppLifecycleState.paused:
-      // Uygulama arka plana gittiğinde
         _handlePaused();
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-      // Diğer durumlar için ekstra işlem gerekmez
         break;
     }
   }
 
   Future<void> _handleResumed() async {
-    // İzin durumunu güncelle
     ref.invalidate(cameraPermissionNotifierProvider);
 
-    // Modal açık değilse ve kamera durduysa, başlat
     if (!_isModalOpen) {
       await Future.delayed(const Duration(milliseconds: 300));
       if (mounted && !_cameraController.value.isRunning) {
@@ -66,16 +57,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   }
 
   Future<void> _handlePaused() async {
-    // Barkod cache'ini temizle
     ref.read(scannerNotifierProvider.notifier).clearBarcodeCache();
 
-    // El fenerini kapat
     if (ref.read(torchNotifierProvider)) {
       await _cameraController.toggleTorch();
       ref.read(torchNotifierProvider.notifier).disable();
     }
 
-    // Kamerayı durdur
     if (_cameraController.value.isRunning) {
       await _cameraController.stop();
     }
@@ -150,8 +138,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Barkod Tara'),
-        backgroundColor: Colors.black.withValues(alpha: 0.3),
+        iconTheme: IconThemeData(color: Colors.white),
+        title: const Text('Barkod Tara', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.black.withValues(alpha: 0.6),
         elevation: 0,
         actions: [
           if (permissionState.valueOrNull?.isGranted == true)
@@ -161,7 +150,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
       body: permissionState.when(
         data: (status) {
           if (status.isGranted) {
-            return _buildScannerView(scannerState);
+            return ScannerView(
+              controller: _cameraController,
+              scannerState: scannerState,
+              isModalOpen: _isModalOpen,
+              onRetry: _restartScanner,
+            );
           } else {
             return const CameraPermissionWidget();
           }
@@ -169,50 +163,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const CameraPermissionWidget(),
       ),
-    );
-  }
-
-  Widget _buildScannerView(AsyncValue<FoodProduct?> scannerState) {
-    return Stack(
-      children: [
-        MobileScanner(
-          controller: _cameraController,
-          onDetect: (capture) {
-            final barcodeValue = capture.barcodes.firstOrNull?.rawValue;
-            if (barcodeValue != null && !_isModalOpen) {
-              ref.read(scannerNotifierProvider.notifier).fetchFood(barcodeValue);
-            }
-          },
-        ),
-        const ScannerOverlay(),
-        if (scannerState.isLoading)
-          const LoadingView()
-        else if (scannerState.hasError)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 100,
-            child: ScannerErrorView(
-              error: scannerState.error as ScannerError,
-              onRetry: _restartScanner,
-            ),
-          ),
-        if (kDebugMode)
-          Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  _cameraController.stop();
-                  ref.read(scannerNotifierProvider.notifier).fetchFood('5449000000996');
-                },
-                child: const Text('Test Barkodu Tara'),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }
