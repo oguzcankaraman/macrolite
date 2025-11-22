@@ -51,7 +51,7 @@ final foodRepositoryProvider = AutoDisposeProvider<FoodRepository>.internal(
 );
 
 typedef FoodRepositoryRef = AutoDisposeProviderRef<FoodRepository>;
-String _$scannerNotifierHash() => r'281be55ebbd5f8c1036090fd8d18b3fb84abfa94';
+String _$scannerNotifierHash() => r'63aa8762d8c8ea2bfce976fb42bb8dd6e1721a8d';
 
 /// See also [ScannerNotifier].
 @ProviderFor(ScannerNotifier)

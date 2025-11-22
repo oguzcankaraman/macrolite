@@ -20,8 +20,11 @@ class TrackerScreen extends ConsumerWidget {
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trackerStateAsync = ref.watch(trackerNotifierProvider);
@@ -46,12 +49,12 @@ class TrackerScreen extends ConsumerWidget {
         bottom: isToday
             ? null
             : PreferredSize(
-          preferredSize: const Size.fromHeight(30.0),
-          child: TextButton(
-            onPressed: () => dateNotifier.setToday(),
-            child: const Text('Bugün\'e Dön'),
-          ),
-        ),
+                preferredSize: const Size.fromHeight(30.0),
+                child: TextButton(
+                  onPressed: () => dateNotifier.setToday(),
+                  child: const Text('Bugün\'e Dön'),
+                ),
+              ),
       ),
       body: trackerStateAsync.when(
         data: (trackerState) {
@@ -97,13 +100,13 @@ class TrackerScreen extends ConsumerWidget {
                           ),
                         )
                       : ListView.builder(
-                    itemCount: meals.length,
-                    itemBuilder: (context, index) {
-                      final meal = meals[index];
-                      // GÜNCELLENDİ: isToday bilgisini MealCard'a paslıyoruz.
-                      return MealCard(meal: meal, isToday: isToday);
-                    },
-                  ),
+                          itemCount: meals.length,
+                          itemBuilder: (context, index) {
+                            final meal = meals[index];
+                            // GÜNCELLENDİ: isToday bilgisini MealCard'a paslıyoruz.
+                            return MealCard(meal: meal, isToday: isToday);
+                          },
+                        ),
                 ),
               ],
             ),

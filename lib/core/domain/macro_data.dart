@@ -1,5 +1,3 @@
-import 'package:macrolite/features/tracker/application/tracker_notifier.dart';
-
 class MacroData {
   final String label;
   final double currentValue;

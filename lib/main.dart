@@ -8,6 +8,9 @@ import 'package:macrolite/core/theme/app_theme.dart';
 import 'package:macrolite/core/domain/food_unit.dart';
 import 'package:macrolite/features/tracker/domain/logged_food.dart';
 import 'package:macrolite/features/tracker/domain/meal.dart';
+import 'package:macrolite/core/domain/gender.dart';
+import 'package:macrolite/core/domain/activity_level.dart';
+import 'package:macrolite/core/domain/goal.dart';
 import 'package:intl/date_symbol_data_local.dart'; // Bu import'u ekleyin
 
 Future<void> main() async {
@@ -20,6 +23,44 @@ Future<void> main() async {
   Hive.registerAdapter(LoggedFoodAdapter());
   Hive.registerAdapter(MealAdapter());
   Hive.registerAdapter(UserProfileAdapter());
+  Hive.registerAdapter(GenderAdapter());
+  Hive.registerAdapter(ActivityLevelAdapter());
+  Hive.registerAdapter(GoalAdapter());
+
+  // Migration: Delete old profile box if it exists with old format
+  // This prevents crash when trying to deserialize incompatible data
+  try {
+    final boxExists = await Hive.boxExists('user_profile');
+    if (boxExists) {
+      // Check if we need migration by trying to read the raw data
+      // If this is old format, delete the box entirely
+      try {
+        // Try to open and immediately close to test compatibility
+        final testBox = await Hive.openBox<UserProfile>('user_profile');
+        final profile = testBox.get(0);
+        await testBox.close();
+
+        // If profile exists but is missing new fields, it's old data
+        if (profile != null) {
+          try {
+            // Test if new fields exist
+            final _ = profile.age;
+          } catch (e) {
+            // Old format - delete the box
+            debugPrint('Old profile format detected, deleting box');
+            await Hive.deleteBoxFromDisk('user_profile');
+          }
+        }
+      } catch (e) {
+        // Any error means incompatible data - delete the box
+        debugPrint('Migration error detected: $e');
+        debugPrint('Deleting incompatible profile box');
+        await Hive.deleteBoxFromDisk('user_profile');
+      }
+    }
+  } catch (e) {
+    debugPrint('Migration check failed: $e');
+  }
 
   runApp(const ProviderScope(child: MacroLiteApp()));
 }

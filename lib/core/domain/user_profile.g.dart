@@ -21,13 +21,19 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       targetProtein: fields[1] as double,
       targetCarbs: fields[2] as double,
       targetFat: fields[3] as double,
+      currentWeight: fields[4] as double,
+      height: fields[5] as double,
+      age: fields[6] as int,
+      gender: fields[7] as Gender,
+      activityLevel: fields[8] as ActivityLevel,
+      goal: fields[9] as Goal,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.targetCalories)
       ..writeByte(1)
@@ -35,7 +41,19 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       ..writeByte(2)
       ..write(obj.targetCarbs)
       ..writeByte(3)
-      ..write(obj.targetFat);
+      ..write(obj.targetFat)
+      ..writeByte(4)
+      ..write(obj.currentWeight)
+      ..writeByte(5)
+      ..write(obj.height)
+      ..writeByte(6)
+      ..write(obj.age)
+      ..writeByte(7)
+      ..write(obj.gender)
+      ..writeByte(8)
+      ..write(obj.activityLevel)
+      ..writeByte(9)
+      ..write(obj.goal);
   }
 
   @override

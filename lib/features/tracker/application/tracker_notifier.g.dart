@@ -6,7 +6,7 @@ part of 'tracker_notifier.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$trackerNotifierHash() => r'48877b745d112b1e99d0e9ed2840261b1b9f529f';
+String _$trackerNotifierHash() => r'8fded733497935e5b71e82ddaff7123186d0a63b';
 
 /// See also [TrackerNotifier].
 @ProviderFor(TrackerNotifier)
