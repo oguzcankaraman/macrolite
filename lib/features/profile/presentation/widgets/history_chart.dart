@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:macrolite/features/tracker/application/daily_summaries_provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 class HistoryChart extends ConsumerWidget {
   const HistoryChart({super.key});
@@ -52,10 +53,19 @@ class HistoryChart extends ConsumerWidget {
               barRods: [
                 BarChartRodData(
                   toY: calories,
-                  color: Colors.blueAccent,
-                  width: 16,
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade400, Colors.blue.shade600],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                  width: 20,
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(4),
+                    top: Radius.circular(6),
+                  ),
+                  backDrawRodData: BackgroundBarChartRodData(
+                    show: true,
+                    toY: maxCalories > 0 ? maxCalories * 1.1 : 100,
+                    color: Colors.grey.shade200,
                   ),
                 ),
               ],
@@ -63,77 +73,203 @@ class HistoryChart extends ConsumerWidget {
           );
         }
 
-        return AspectRatio(
-          aspectRatio: 1.5,
+        // Ensure maxY is never too small for proper chart rendering
+        final double chartMaxY = maxCalories > 0 ? maxCalories * 1.2 : 100.0;
+        // Ensure horizontalInterval is never zero to avoid fl_chart assertion error
+        final double gridInterval = maxCalories > 0 ? maxCalories / 4 : 25.0;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: maxCalories * 1.2, // Add some buffer
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (group) => Colors.blueGrey,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final date = start.add(Duration(days: group.x.toInt()));
-                      return BarTooltipItem(
-                        '${DateFormat('MMM d').format(date)}\n',
-                        const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Calorie Intake',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Last 7 Days',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blue,
                         ),
-                        children: [
-                          TextSpan(
-                            text: '${rod.toY.toInt()} kcal',
-                            style: const TextStyle(color: Colors.yellowAccent),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final date = start.add(Duration(days: value.toInt()));
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            DateFormat('E').format(date), // Mon, Tue...
-                            style: const TextStyle(fontSize: 12),
+                const SizedBox(height: 20),
+                AspectRatio(
+                  aspectRatio: 1.5,
+                  child: BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceEvenly,
+                      maxY: chartMaxY,
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipColor: (group) => Colors.blue.shade700,
+                          tooltipPadding: const EdgeInsets.all(8),
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final date = start.add(
+                              Duration(days: group.x.toInt()),
+                            );
+                            return BarTooltipItem(
+                              '${DateFormat('MMM d').format(date)}\n',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: '${rod.toY.toInt()} kcal',
+                                  style: TextStyle(
+                                    color: Colors.blue.shade100,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              final date = start.add(
+                                Duration(days: value.toInt()),
+                              );
+                              final isToday =
+                                  DateTime(date.year, date.month, date.day) ==
+                                  today;
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  DateFormat('E').format(date),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: isToday
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: isToday ? Colors.blue : Colors.grey,
+                                  ),
+                                ),
+                              );
+                            },
+                            reservedSize: 32,
                           ),
-                        );
-                      },
-                      reservedSize: 30,
+                        ),
+                        leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: gridInterval,
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey.shade200,
+                            strokeWidth: 1,
+                          );
+                        },
+                      ),
+                      borderData: FlBorderData(show: false),
+                      barGroups: barGroups,
                     ),
                   ),
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
                 ),
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                barGroups: barGroups,
-              ),
+              ],
             ),
           ),
         );
       },
-      loading: () => const SizedBox(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
+      loading: () => Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(width: 120, height: 24, color: Colors.white),
+                    Container(
+                      width: 80,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(
+                    7,
+                    (index) => Container(
+                      width: 20,
+                      height: 100.0 + (index % 3) * 20, // Random-ish heights
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      error: (error, stack) =>
-          SizedBox(height: 200, child: Center(child: Text('Error: $error'))),
+      error: (error, stack) => Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: SizedBox(
+          height: 250,
+          child: Center(child: Text('Error: $error')),
+        ),
+      ),
     );
   }
 }

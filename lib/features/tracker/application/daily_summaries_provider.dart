@@ -4,7 +4,8 @@ import 'package:macrolite/features/tracker/data/tracker_repository.dart';
 
 part 'daily_summaries_provider.g.dart';
 
-@riverpod
+// Use autoDispose to ensure fresh data is fetched each time
+@Riverpod(keepAlive: false)
 Future<List<DailyMacroSummary>> dailySummaries(
   DailySummariesRef ref, {
   required DateTime start,

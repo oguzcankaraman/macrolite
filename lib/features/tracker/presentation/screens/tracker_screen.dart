@@ -8,8 +8,8 @@ import 'package:macrolite/features/tracker/presentation/widgets/add_food_fab.dar
 import '../../application/date_notifier.dart';
 import '../../application/tracker_notifier.dart';
 import '../../domain/meal.dart';
-import '../widgets/macro_summary.dart';
 import '../widgets/meal_card.dart';
+import '../widgets/daily_progress_card.dart';
 
 class TrackerScreen extends ConsumerWidget {
   const TrackerScreen({super.key});
@@ -65,45 +65,61 @@ class TrackerScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: summaryData
-                      .map((data) => MacroSummary(data: data))
-                      .toList(),
-                ),
-                const Divider(height: 32),
+                DailyProgressCard(summaryData: summaryData),
+                const SizedBox(height: 24),
                 Expanded(
                   child: meals.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.fastfood_outlined,
-                                size: 60,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Henüz bir yiyecek eklemedin.',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey,
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withOpacity(0.3),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.restaurant_menu_rounded,
+                                  size: 64,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withOpacity(0.5),
                                 ),
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 24),
                               Text(
-                                'Başlamak için + butonuna dokun.',
-                                style: TextStyle(color: Colors.grey),
+                                'No meals logged yet',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap the + button to track your first meal',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
                         )
-                      : ListView.builder(
+                      : ListView.separated(
                           itemCount: meals.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final meal = meals[index];
-                            // GÜNCELLENDİ: isToday bilgisini MealCard'a paslıyoruz.
                             return MealCard(meal: meal, isToday: isToday);
                           },
                         ),

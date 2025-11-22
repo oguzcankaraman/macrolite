@@ -8,9 +8,12 @@ import 'package:macrolite/core/domain/goal.dart';
 import 'package:macrolite/core/utils/macro_calculator.dart';
 import 'package:macrolite/features/profile/profile_notifier.dart';
 import 'package:macrolite/core/navigation/app_router_provider.dart';
+import 'package:macrolite/core/widgets/custom_slider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({super.key, this.fromProfile = false});
+
+  final bool fromProfile;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -32,32 +35,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil Kurulumu'),
-        automaticallyImplyLeading: false,
+        title: Text(widget.fromProfile ? 'Makro Güncelle' : 'Profil Kurulumu'),
+        leading: widget.fromProfile
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        automaticallyImplyLeading: widget.fromProfile,
       ),
       body: Column(
         children: [
-          // Progress indicator
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: List.generate(
-                4,
-                (index) => Expanded(
-                  child: Container(
-                    height: 4,
-                    margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
-                    decoration: BoxDecoration(
-                      color: index <= _currentPage
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Animated Progress indicator
+          _AnimatedProgressBar(currentPage: _currentPage, totalPages: 4),
 
           Expanded(
             child: PageView(
@@ -92,15 +82,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     if (_currentPage < 3) {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
+                      await _pageController.nextPage(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutCubic,
                       );
                     } else {
                       await _finishOnboarding();
                     }
                   },
-                  child: Text(_currentPage < 3 ? 'İleri' : 'Tamamla'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _currentPage < 3 ? 'İleri' : 'Tamamla',
+                    style: const TextStyle(fontSize: 16),
+                  ),
                 ),
               ],
             ),
@@ -131,16 +133,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             'Yaş',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
-          Slider(
+          const SizedBox(height: 16),
+          CustomSlider(
             value: _age.toDouble(),
             min: 15,
             max: 80,
             divisions: 65,
             label: _age.toString(),
+            unit: 'yaş',
             onChanged: (value) => setState(() => _age = value.toInt()),
           ),
-          Text('$_age yaş', style: const TextStyle(fontSize: 16)),
 
           const SizedBox(height: 32),
           const Text(
@@ -178,18 +180,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             'Kilo (kg)',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
-          Slider(
+          const SizedBox(height: 16),
+          CustomSlider(
             value: _weight,
             min: 40,
             max: 150,
             divisions: 110,
             label: _weight.toStringAsFixed(0),
+            unit: 'kg',
             onChanged: (value) => setState(() => _weight = value),
-          ),
-          Text(
-            '${_weight.toStringAsFixed(0)} kg',
-            style: const TextStyle(fontSize: 16),
           ),
 
           const SizedBox(height: 32),
@@ -197,18 +196,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             'Boy (cm)',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
-          Slider(
+          const SizedBox(height: 16),
+          CustomSlider(
             value: _height,
             min: 140,
             max: 220,
             divisions: 80,
             label: _height.toStringAsFixed(0),
+            unit: 'cm',
             onChanged: (value) => setState(() => _height = value),
-          ),
-          Text(
-            '${_height.toStringAsFixed(0)} cm',
-            style: const TextStyle(fontSize: 16),
           ),
         ],
       ),
@@ -350,9 +346,100 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     // Save profile
     await ref.read(profileNotifierProvider.notifier).updateProfile(newProfile);
 
-    // Navigate to tracker
-    if (mounted) {
+    if (!mounted) return;
+
+    if (widget.fromProfile) {
+      // If opened from profile screen, just pop back
+      Navigator.of(context).pop();
+    } else {
+      // If first onboarding, go to tracker
       context.go(AppRoute.tracker);
     }
+  }
+}
+
+// Animated Progress Bar Widget
+class _AnimatedProgressBar extends StatelessWidget {
+  const _AnimatedProgressBar({
+    required this.currentPage,
+    required this.totalPages,
+  });
+
+  final int currentPage;
+  final int totalPages;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        children: List.generate(totalPages, (index) {
+          final isCompleted = index < currentPage;
+          final isActive = index == currentPage;
+
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: index < totalPages - 1 ? 8 : 0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Background track
+                  Container(
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Animated progress fill
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOutCubic,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isCompleted || isActive
+                            ? [Colors.blue.shade400, Colors.blue.shade600]
+                            : [Colors.grey.shade300, Colors.grey.shade300],
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: isActive
+                          ? [
+                              BoxShadow(
+                                color: Colors.blue.shade400.withOpacity(0.5),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                  // Checkmark for completed steps
+                  if (isCompleted)
+                    AnimatedScale(
+                      duration: const Duration(milliseconds: 300),
+                      scale: isCompleted ? 1.0 : 0.0,
+                      curve: Curves.elasticOut,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    );
   }
 }

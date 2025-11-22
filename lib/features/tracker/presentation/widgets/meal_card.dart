@@ -45,57 +45,121 @@ class MealCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final totalCalories = meal.totalCalories; // Getter'ımızı kullanıyoruz.
+    final totalCalories = meal.totalCalories;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(meal.name, style: Theme.of(context).textTheme.titleLarge),
-            Text(
-              '$totalCalories kcal',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
             ),
-
-            const Divider(height: 16),
-            Column(
-              children: meal.loggedFoods.map((food) {
-                return ListTile(
-                  title: Text(food.name),
-                  subtitle: Text(
-                    '${food.quantity.toString()} ${food.unit.label}',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${food.calories.toInt()} kcal'),
-                      if (isToday)
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.grey,
-                            size: 20,
+            child: Icon(
+              _getMealIcon(meal.name),
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
+          title: Text(
+            meal.name,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          subtitle: Text(
+            '${totalCalories.toInt()} kcal',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.secondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: meal.loggedFoods.map((food) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                food.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${food.quantity} ${food.unit.label}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
-                          onPressed: () =>
-                              _showDeleteConfirmationDialog(context, ref, food),
                         ),
-                    ],
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                );
-              }).toList(),
+                        Text(
+                          '${food.calories.toInt()} kcal',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        if (isToday) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 20),
+                            color: Colors.red[400],
+                            onPressed: () => _showDeleteConfirmationDialog(
+                              context,
+                              ref,
+                              food,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _getMealIcon(String mealName) {
+    final name = mealName.toLowerCase();
+    if (name.contains('kahvaltı') || name.contains('breakfast')) {
+      return Icons.wb_sunny_outlined;
+    } else if (name.contains('öğle') || name.contains('lunch')) {
+      return Icons.wb_twilight;
+    } else if (name.contains('akşam') || name.contains('dinner')) {
+      return Icons.nights_stay_outlined;
+    } else if (name.contains('ara') || name.contains('snack')) {
+      return Icons.cookie_outlined;
+    }
+    return Icons.restaurant_outlined;
   }
 }

@@ -5,6 +5,7 @@ import 'package:macrolite/core/domain/macro_data.dart';
 import 'package:macrolite/features/tracker/domain/logged_food.dart';
 import 'package:macrolite/features/tracker/domain/meal.dart';
 import 'package:macrolite/features/tracker/data/tracker_repository.dart';
+import 'package:macrolite/features/tracker/application/daily_summaries_provider.dart';
 import 'date_notifier.dart';
 import 'tracker_state.dart';
 
@@ -26,7 +27,6 @@ enum MacroKind {
 
 @riverpod
 class TrackerNotifier extends _$TrackerNotifier {
-
   @override
   Future<TrackerState> build() async {
     final selectedDate = ref.watch(selectedDateProvider);
@@ -52,6 +52,7 @@ class TrackerNotifier extends _$TrackerNotifier {
       'fatTarget': user.targetFat,
     };
   }
+
   List<MacroData> _createEmptyMacroData(Map<String, double> targets) {
     return [
       MacroData(
@@ -77,26 +78,53 @@ class TrackerNotifier extends _$TrackerNotifier {
     ];
   }
 
-  List<MacroData> _calculateSummaryData(List<Meal> meals, Map<String, double> currentMacros) {
+  List<MacroData> _calculateSummaryData(
+    List<Meal> meals,
+    Map<String, double> currentMacros,
+  ) {
     final allFoods = meals.expand((meal) => meal.loggedFoods).toList();
 
     if (allFoods.isEmpty) {
       return _createEmptyMacroData(currentMacros);
     }
 
-    final totalCalories = allFoods.fold<double>(0, (sum, food) => sum + food.calories);
-    final totalProtein = allFoods.fold<double>(0, (sum, food) => sum + food.protein);
-    final totalCarbs = allFoods.fold<double>(0, (sum, food) => sum + food.carbs);
+    final totalCalories = allFoods.fold<double>(
+      0,
+      (sum, food) => sum + food.calories,
+    );
+    final totalProtein = allFoods.fold<double>(
+      0,
+      (sum, food) => sum + food.protein,
+    );
+    final totalCarbs = allFoods.fold<double>(
+      0,
+      (sum, food) => sum + food.carbs,
+    );
     final totalFat = allFoods.fold<double>(0, (sum, food) => sum + food.fat);
 
     return [
-      MacroData(label: MacroKind.calorie.label, currentValue: totalCalories, targetValue: currentMacros['calorieTarget']!),
-      MacroData(label: MacroKind.protein.label, currentValue: totalProtein, targetValue: currentMacros['proteinTarget']!),
-      MacroData(label: MacroKind.carbs.label, currentValue: totalCarbs, targetValue: currentMacros['carbTarget']!),
-      MacroData(label: MacroKind.fat.label, currentValue: totalFat, targetValue: currentMacros['fatTarget']!),
+      MacroData(
+        label: MacroKind.calorie.label,
+        currentValue: totalCalories,
+        targetValue: currentMacros['calorieTarget']!,
+      ),
+      MacroData(
+        label: MacroKind.protein.label,
+        currentValue: totalProtein,
+        targetValue: currentMacros['proteinTarget']!,
+      ),
+      MacroData(
+        label: MacroKind.carbs.label,
+        currentValue: totalCarbs,
+        targetValue: currentMacros['carbTarget']!,
+      ),
+      MacroData(
+        label: MacroKind.fat.label,
+        currentValue: totalFat,
+        targetValue: currentMacros['fatTarget']!,
+      ),
     ];
   }
-
 
   Future<void> addFoodToMeal(String mealName, LoggedFood newFood) async {
     final repository = ref.read(trackerRepositoryProvider);
@@ -111,8 +139,12 @@ class TrackerNotifier extends _$TrackerNotifier {
     final mealIndex = currentMeals.indexWhere((meal) => meal.name == mealName);
 
     if (mealIndex != -1) {
-      final updatedFoods = List<LoggedFood>.from(currentMeals[mealIndex].loggedFoods)..add(newFood);
-      currentMeals[mealIndex] = currentMeals[mealIndex].copyWith(loggedFoods: updatedFoods);
+      final updatedFoods = List<LoggedFood>.from(
+        currentMeals[mealIndex].loggedFoods,
+      )..add(newFood);
+      currentMeals[mealIndex] = currentMeals[mealIndex].copyWith(
+        loggedFoods: updatedFoods,
+      );
     } else {
       currentMeals.add(Meal(name: mealName, loggedFoods: [newFood]));
     }
@@ -122,7 +154,12 @@ class TrackerNotifier extends _$TrackerNotifier {
 
     await repository.saveMeals(selectedDate, currentMeals);
 
-    state = AsyncData(currentState.copyWith(summaryData: newSummaryData, meals: currentMeals));
+    // Invalidate daily summaries so profile charts update immediately
+    ref.invalidate(dailySummariesProvider);
+
+    state = AsyncData(
+      currentState.copyWith(summaryData: newSummaryData, meals: currentMeals),
+    );
   }
 
   Future<void> removeFood(String mealName, LoggedFood foodToRemove) async {
@@ -139,15 +176,16 @@ class TrackerNotifier extends _$TrackerNotifier {
     final mealIndex = currentMeals.indexWhere((meal) => meal.name == mealName);
 
     if (mealIndex != -1) {
-      final updatedFoods = currentMeals[mealIndex]
-          .loggedFoods
+      final updatedFoods = currentMeals[mealIndex].loggedFoods
           .where((food) => food != foodToRemove)
           .toList();
 
       if (updatedFoods.isEmpty) {
         currentMeals.removeAt(mealIndex);
       } else {
-        currentMeals[mealIndex] = currentMeals[mealIndex].copyWith(loggedFoods: updatedFoods);
+        currentMeals[mealIndex] = currentMeals[mealIndex].copyWith(
+          loggedFoods: updatedFoods,
+        );
       }
 
       final currentMacros = getCurrentMacros(userProfileRepo);
@@ -155,7 +193,12 @@ class TrackerNotifier extends _$TrackerNotifier {
 
       await repository.saveMeals(selectedDate, currentMeals);
 
-      state = AsyncData(currentState.copyWith(summaryData: newSummaryData, meals: currentMeals));
+      // Invalidate daily summaries so profile charts update immediately
+      ref.invalidate(dailySummariesProvider);
+
+      state = AsyncData(
+        currentState.copyWith(summaryData: newSummaryData, meals: currentMeals),
+      );
     }
   }
 }

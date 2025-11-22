@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macrolite/core/domain/user_profile.dart';
 import 'package:macrolite/features/profile/profile_notifier.dart';
 import 'package:macrolite/features/onboarding/onboarding_screen.dart';
+import 'package:macrolite/core/theme/theme_notifier.dart';
 
 class ProfileSettingsSection extends ConsumerWidget {
   const ProfileSettingsSection({super.key});
@@ -22,7 +23,8 @@ class ProfileSettingsSection extends ConsumerWidget {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => const OnboardingScreen(),
+                    builder: (context) =>
+                        const OnboardingScreen(fromProfile: true),
                   ),
                 );
               },
@@ -32,6 +34,13 @@ class ProfileSettingsSection extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
+          ),
+          const Divider(),
+          SwitchListTile(
+            title: const Text('Karanlık Mod'),
+            value: ref.watch(themeNotifierProvider),
+            onChanged: (_) => ref.read(themeNotifierProvider.notifier).toggle(),
+            secondary: const Icon(Icons.brightness_6),
           ),
           const Divider(),
           _buildSettingItem(
