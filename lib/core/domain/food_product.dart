@@ -4,6 +4,8 @@ class FoodProduct {
   final double proteinPer100g;
   final double carbsPer100g;
   final double fatPer100g;
+  final double servingQuantity;
+  final String? servingSize;
 
   FoodProduct({
     required this.productName,
@@ -11,6 +13,8 @@ class FoodProduct {
     required this.proteinPer100g,
     required this.carbsPer100g,
     required this.fatPer100g,
+    this.servingQuantity = 0,
+    this.servingSize,
   });
 
   factory FoodProduct.fromJson(Map<String, dynamic> json) {
@@ -41,6 +45,8 @@ class FoodProduct {
       proteinPer100g: (nutriments['proteins_100g'] ?? 0).toDouble(),
       carbsPer100g: (nutriments['carbohydrates_100g'] ?? 0).toDouble(),
       fatPer100g: (nutriments['fat_100g'] ?? 0).toDouble(),
+      servingQuantity: (product['serving_quantity'] ?? 0).toDouble(),
+      servingSize: product['serving_size'] as String?,
     );
   }
 }

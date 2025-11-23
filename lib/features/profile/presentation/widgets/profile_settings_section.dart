@@ -153,10 +153,13 @@ class ProfileSettingsSection extends ConsumerWidget {
               final newValue = double.tryParse(controller.text);
               if (newValue != null) {
                 final newProfile = onUpdate(newValue);
-                ref
-                    .read(profileNotifierProvider.notifier)
-                    .updateProfile(newProfile);
                 Navigator.pop(context);
+                // Update profile after closing dialog to avoid widget lifecycle issues
+                Future.microtask(() {
+                  ref
+                      .read(profileNotifierProvider.notifier)
+                      .updateProfile(newProfile);
+                });
               }
             },
             child: const Text('Save'),

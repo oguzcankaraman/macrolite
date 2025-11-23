@@ -7,6 +7,7 @@ import 'package:macrolite/core/navigation/app_router_provider.dart';
 import 'package:macrolite/core/theme/app_theme.dart';
 import 'package:macrolite/core/domain/food_unit.dart';
 import 'package:macrolite/features/tracker/domain/logged_food.dart';
+import 'package:macrolite/features/tracker/domain/food_item.dart';
 import 'package:macrolite/features/tracker/domain/meal.dart';
 import 'package:macrolite/features/tracker/domain/recipe.dart';
 import 'package:macrolite/core/domain/gender.dart';
@@ -21,6 +22,7 @@ Future<void> main() async {
   await Hive.initFlutter();
 
   Hive.registerAdapter(FoodUnitAdapter());
+  Hive.registerAdapter(FoodItemAdapter());
   Hive.registerAdapter(LoggedFoodAdapter());
   Hive.registerAdapter(MealAdapter());
   Hive.registerAdapter(UserProfileAdapter());
@@ -28,6 +30,10 @@ Future<void> main() async {
   Hive.registerAdapter(ActivityLevelAdapter());
   Hive.registerAdapter(GoalAdapter());
   Hive.registerAdapter(RecipeAdapter());
+
+  await Hive.openBox('settings');
+  await Hive.openBox<FoodItem>('food_library');
+  await Hive.openBox<Recipe>('recipes');
 
   // Migration: Delete old profile box if it exists with old format
   // This prevents crash when trying to deserialize incompatible data

@@ -6,7 +6,10 @@ import 'package:macrolite/features/scanner/application/camera_permission_notifie
 import 'package:macrolite/features/scanner/application/torch_notifier.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../widgets/product_found_view.dart';
+import 'package:macrolite/features/tracker/domain/food_item.dart';
+import 'package:macrolite/features/tracker/domain/logged_food.dart';
+import 'package:macrolite/features/tracker/presentation/widgets/food_quantity_sheet.dart';
+import 'package:uuid/uuid.dart';
 import '../widgets/scanner_view.dart';
 import '../widgets/camera_permission_widget.dart';
 import '../widgets/torch_button.dart';
@@ -18,7 +21,8 @@ class ScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindingObserver {
+class _ScannerScreenState extends ConsumerState<ScannerScreen>
+    with WidgetsBindingObserver {
   final MobileScannerController _cameraController = MobileScannerController();
   bool _isModalOpen = false;
 
@@ -70,7 +74,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   }
 
   void _setupListener() {
-    ref.listenManual<AsyncValue<FoodProduct?>>(scannerNotifierProvider, (previous, next) {
+    ref.listenManual<AsyncValue<FoodProduct?>>(scannerNotifierProvider, (
+      previous,
+      next,
+    ) {
       if (next is AsyncData && next.value != null) {
         _showProductFoundModal(context, ref, next.value!);
       }
@@ -87,7 +94,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
     super.dispose();
   }
 
-  Future<void> _showProductFoundModal(BuildContext context, WidgetRef ref, FoodProduct product) async {
+  Future<void> _showProductFoundModal(
+    BuildContext context,
+    WidgetRef ref,
+    FoodProduct product,
+  ) async {
     _isModalOpen = true;
     await _cameraController.stop();
 
@@ -98,7 +109,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
 
     if (!mounted) return;
 
-    await showModalBottomSheet(
+    // Convert FoodProduct to FoodItem
+    final foodItem = FoodItem(
+      id: const Uuid().v4(),
+      name: product.productName,
+      calories: product.caloriesPer100g,
+      protein: product.proteinPer100g,
+      carbs: product.carbsPer100g,
+      fat: product.fatPer100g,
+      unit: 'gram',
+      baseAmount: 100.0,
+      servingSizeG: product.servingQuantity > 0
+          ? product.servingQuantity
+          : null,
+      servingUnit: _parseServingUnit(product.servingSize),
+    );
+
+    final result = await showModalBottomSheet<LoggedFood>(
       context: context,
       isScrollControlled: true,
       isDismissible: true,
@@ -107,9 +134,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
         initialChildSize: 0.9,
         minChildSize: 0.5,
         maxChildSize: 0.95,
-        builder: (_, scrollController) => ProductFoundView(
-          product: product,
-          scrollController: scrollController,
+        builder: (_, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          child: FoodQuantitySheet(
+            food: foodItem,
+            mealName: null, // User selects meal
+          ),
         ),
       ),
     );
@@ -118,8 +148,35 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
 
     if (mounted) {
       ref.read(scannerNotifierProvider.notifier).resetState();
-      _restartScanner();
+
+      if (result != null) {
+        // Food added, return to tracker
+        Navigator.pop(context);
+      } else {
+        // Cancelled, restart scanner
+        _restartScanner();
+      }
     }
+  }
+
+  String? _parseServingUnit(String? servingSize) {
+    if (servingSize == null) return null;
+    final s = servingSize.toLowerCase();
+    if (s.contains('ml') || s.contains('milliliter') || s.contains(' l '))
+      return 'Ml';
+    if (s.contains('biscuit') ||
+        s.contains('cookie') ||
+        s.contains('adet') ||
+        s.contains('piece') ||
+        s.contains('egg'))
+      return 'Adet';
+    if (s.contains('slice') || s.contains('dilim')) return 'Dilim';
+    if (s.contains('bar') || s.contains('paket') || s.contains('pack'))
+      return 'Paket';
+    if (s.contains('cup') || s.contains('bardak')) return 'Bardak';
+    if (s.contains('tbsp') || s.contains('kaşık')) return 'Kaşık';
+    if (s.contains('portion') || s.contains('porsiyon')) return 'Porsiyon';
+    return null;
   }
 
   void _restartScanner() {

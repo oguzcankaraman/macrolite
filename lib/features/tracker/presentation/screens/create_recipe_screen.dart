@@ -7,6 +7,7 @@ import 'package:macrolite/features/tracker/domain/logged_food.dart';
 import 'package:macrolite/features/tracker/domain/recipe.dart';
 import 'package:macrolite/core/utils/validators.dart';
 import 'ingredient_scanner_screen.dart';
+import 'search_ingredient_screen.dart';
 
 class CreateRecipeScreen extends ConsumerStatefulWidget {
   const CreateRecipeScreen({super.key});
@@ -39,8 +40,8 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
         actions: [
           TextButton.icon(
             onPressed: () => Navigator.pop(context, 'manual'),
-            icon: const Icon(Icons.edit),
-            label: const Text('Manuel Gir'),
+            icon: const Icon(Icons.search),
+            label: const Text('Ara / Ekle'),
           ),
           TextButton.icon(
             onPressed: () => Navigator.pop(context, 'barcode'),
@@ -56,9 +57,9 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
     LoggedFood? result;
 
     if (choice == 'manual') {
-      result = await showDialog<LoggedFood>(
-        context: context,
-        builder: (context) => const _AddIngredientDialog(),
+      result = await Navigator.push<LoggedFood>(
+        context,
+        MaterialPageRoute(builder: (context) => const SearchIngredientScreen()),
       );
     } else if (choice == 'barcode') {
       result = await Navigator.push<LoggedFood>(
